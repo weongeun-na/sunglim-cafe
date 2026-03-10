@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>성림카페 호출 전광판</title>
+    <style>
+        body { background: #000; color: #ff0000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; }
+        .label { font-size: 5vw; color: #fff; margin-bottom: 10px; }
+        .number { font-size: 25vw; font-weight: bold; text-shadow: 0 0 40px #ff0000; margin: 0; line-height: 1; }
+        .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 20px; }
+        .info { font-size: 3vw; color: #aaa; position: absolute; bottom: 50px; }
+    </style>
+</head>
+<body>
+    <div class="label">준비 완료</div>
+    <div id="callNumber" class="number">--</div>
+    <div id="callName" class="name">대기중</div>
+    <div class="info">은혜로운 하루 되세요!</div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        var firebaseConfig = {
+          apiKey: "AIzaSyAtsMFXTLEmIgew3S_qaZY3m9SbVTnGx7E",
+          authDomain: "sunglim-cafe.firebaseapp.com",
+          databaseURL: "https://sunglim-cafe-default-rtdb.firebaseio.com",
+          projectId: "sunglim-cafe",
+          storageBucket: "sunglim-cafe.firebasestorage.app",
+          messagingSenderId: "266842911139",
+          appId: "1:266842911139:web:8142bf89052e4fa52c6a16"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+
+        function playDingDong() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            function playNote(freq, startTime, duration) {
+                const osc = context.createOscillator();
+                const gain = context.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0.5, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                osc.connect(gain);
+                gain.connect(context.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            }
+            playNote(659.25, context.currentTime, 0.5); 
+            playNote(523.25, context.currentTime + 0.3, 0.5); 
+        }
+
+        function numberToKorean(num) {
+            var units = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+            var tens = ['', '십', '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'];
+            var n = parseInt(num);
+            if (isNaN(n) || n === 0) return '영';
+            if (n < 10) return units[n];
+            if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+            return num;
+        }
+
+        firebase.database().ref('call').on('value', function(snapshot) {
+            var data = snapshot.val();
+            if(data && data.num) {
+                document.getElementById('callNumber').innerText = data.num;
+                var title = data.title ? data.title : "";
+                var displayName = data.name ? data.name + " " + title : "고객님";
+                document.getElementById('callName').innerText = displayName;
+                
+                playDingDong();
+                
+                setTimeout(() => {
+                    var kornum = numberToKorean(data.num);
+                    var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
+                    var utterance = new SpeechSynthesisUtterance(speakText);
+                    utterance.lang = 'ko-KR'; 
+                    utterance.rate = 0.85; // 아나운서 속도
+                    utterance.pitch = 1.1; // 아나운서 톤
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                }, 800);
+            }
+        });
+    </script>
+</body>
+</html>

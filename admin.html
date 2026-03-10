@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성림카페 호출 리모컨</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; text-align: center; padding: 15px; background: #f0f0f0; margin: 0; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header-title { color: #333; margin: 15px 0; font-size: 22px; font-weight: 800; letter-spacing: -1px; }
+        input { width: 90%; padding: 12px; margin: 5px 0; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 90%; margin: 10px auto; }
+        .option-item { background: #f9f9f9; padding: 8px; border-radius: 6px; border: 1px solid #ddd; display: flex; align-items: center; cursor: pointer; font-size: 14px; }
+        .option-item input { width: auto; margin: 0 5px 0 0; }
+        .main-btn { width: 90%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .history { margin-top: 20px; text-align: left; width: 90%; margin-left: auto; margin-right: auto; }
+        .history-title { font-size: 14px; color: #666; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .history-item { background: #fff; border: 1px solid #e0e0e0; padding: 10px; margin-bottom: 5px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .history-info { font-size: 15px; color: #333; flex-grow: 1; cursor: pointer; }
+        .btn-group { display: flex; gap: 5px; }
+        .re-call { font-size: 12px; color: #007bff; border: 1px solid #007bff; padding: 4px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+        .delete-btn { font-size: 12px; color: #dc3545; border: 1px solid #dc3545; padding: 4px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-title">☕ 성림카페 호출 리모컨</div>
+        <input type="number" id="num" placeholder="번호" inputmode="numeric">
+        <input type="text" id="name" placeholder="이름 (생략가능)">
+        <div class="options">
+            <label class="option-item"><input type="radio" name="title" value="형제님"> 형제님</label>
+            <label class="option-item"><input type="radio" name="title" value="자매님"> 자매님</label>
+            <label class="option-item"><input type="radio" name="title" value="집사님" checked> 집사님</label>
+            <label class="option-item"><input type="radio" name="title" value="성도님"> 성도님</label>
+            <label class="option-item"><input type="radio" name="title" value="전도사님"> 전도사님</label>
+            <label class="option-item"><input type="radio" name="title" value="목사님"> 목사님</label>
+            <label class="option-item"><input type="radio" name="title" value="장로님"> 장로님</label>
+            <label class="option-item"><input type="radio" name="title" value="님"> 님</label>
+        </div>
+        <button class="main-btn" onclick="sendCall()">호출하기</button>
+        <div class="history">
+            <div class="history-title">최근 호출 기록 (공유됨)</div>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        var firebaseConfig = {
+            apiKey: "AIzaSyAtsMFXTLEmIgew3S_qaZY3m9SbVTnGx7E",
+            authDomain: "sunglim-cafe.firebaseapp.com",
+            databaseURL: "https://sunglim-cafe-default-rtdb.firebaseio.com",
+            projectId: "sunglim-cafe",
+            storageBucket: "sunglim-cafe.firebasestorage.app",
+            messagingSenderId: "266842911139",
+            appId: "1:266842911139:web:8142bf89052e4fa52c6a16"
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        var db = firebase.database();
+
+        // 호출 전송 함수
+        function sendCall(hNum, hName, hTitle) {
+            var num = hNum || document.getElementById('num').value;
+            var name = hName !== undefined ? hName : document.getElementById('name').value;
+            var title = hTitle || document.querySelector('input[name="title"]:checked').value;
+            
+            if(!num) {
+                alert('번호를 입력하세요');
+                return;
+            }
+            
+            var callData = { num: num, name: name, title: title, time: Date.now() };
+            
+            // 1. 실시간 호출 데이터 업데이트
+            db.ref('call').set(callData);
+
+            // 2. 기록 저장 (새 호출일 때만)
+            if(!hNum) {
+                db.ref('history').push(callData);
+                document.getElementById('num').value = '';
+                document.getElementById('name').value = '';
+            }
+        }
+
+        // 기록 실시간 감시 및 UI 업데이트
+        db.ref('history').orderByChild('time').limitToLast(3).on('value', function(snapshot) {
+            var data = snapshot.val();
+            var list = [];
+            for (var id in data) {
+                var item = data[id];
+                item.id = id;
+                list.unshift(item);
+            }
+            updateHistoryUI(list);
+        });
+
+        function deleteHistory(id) {
+            if(confirm('이 기록을 삭제하시겠습니까?')) {
+                db.ref('history/' + id).remove();
+            }
+        }
+
+        function updateHistoryUI(historyData) {
+            var listHtml = historyData.map(function(item) {
+                return `
+                <div class="history-item">
+                    <div class="history-info" onclick="sendCall('${item.num}', '${item.name}', '${item.title}')">
+                        <strong>${item.num}번</strong> ${item.name} ${item.title}
+                    </div>
+                    <div class="btn-group">
+                        <div class="re-call" onclick="sendCall('${item.num}', '${item.name}', '${item.title}')">호출</div>
+                        <div class="delete-btn" onclick="deleteHistory('${item.id}')">삭제</div>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('historyList').innerHTML = listHtml;
+        }
+    </script>
+</body>
+</html>
