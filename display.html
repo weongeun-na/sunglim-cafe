@@ -9,8 +9,6 @@
         .number { font-size: 25vw; font-weight: bold; text-shadow: 0 0 40px #ff0000; margin: 0; line-height: 1; }
         .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 20px; }
         .info { font-size: 3vw; color: #aaa; position: absolute; bottom: 50px; }
-        
-        /* 오디오 허용을 위한 덮개 화면 */
         #startOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; align-items: center; justify-content: center; font-size: 4vw; z-index: 1000; flex-direction: column; cursor: pointer; }
         .pulse-text { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -18,10 +16,8 @@
 </head>
 <body>
     <div id="startOverlay" onclick="startSystem()">
-        <div class="pulse-text">👆 여기 화면을 한 번 클릭해 주세요!</div>
-        <div style="font-size: 2vw; margin-top:20px; color:#aaa;">(안내 방송 소리를 켜기 위해 꼭 필요합니다)</div>
+        <div class="pulse-text">👆 화면을 한 번 클릭해 주세요! (오디오 켜기)</div>
     </div>
-
     <div class="label">준비 완료</div>
     <div id="callNumber" class="number">--</div>
     <div id="callName" class="name">대기중</div>
@@ -44,17 +40,11 @@
         let isSystemStarted = false;
         let audioCtx;
 
-        // 클릭 시 시스템 시작 및 오디오 엔진 깨우기
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
             isSystemStarted = true;
-            
-            // 딩동 소리 엔진 켜기
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // 아나운서 목소리(TTS) 엔진 강제로 한 번 깨우기 (버그 방지)
-            let wakeUp = new SpeechSynthesisUtterance('');
-            window.speechSynthesis.speak(wakeUp);
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); // 엔진 깨우기
         }
 
         function playDingDong() {
@@ -74,7 +64,7 @@
                 }
                 playNote(659.25, audioCtx.currentTime, 0.4); 
                 playNote(523.25, audioCtx.currentTime + 0.2, 0.4);
-            } catch(e) { console.error("Audio error", e); }
+            } catch(e) {}
         }
 
         function numberToKorean(num) {
@@ -89,29 +79,29 @@
 
         firebase.database().ref('call').on('value', function(snapshot) {
             var data = snapshot.val();
-            // 시스템이 켜져 있을 때만(클릭 후) 반응하도록 수정
             if(data && data.num && isSystemStarted) {
+                
+                // 1. 데이터 정리
+                var finalTitle = data.title ? data.title.trim() : "님";
+                var finalName = data.name ? data.name.trim() : "";
+                
+                // 2. 화면에 표시될 글자 완성 (예: "집사님" 또는 "홍길동 집사님")
+                var displayName = finalName === "" ? finalTitle : (finalName + " " + finalTitle);
+
+                // 3. 화면 업데이트
                 document.getElementById('callNumber').innerText = data.num;
-                
-                // 이름 입력 안 했을 시 호칭만 나오도록 완벽 분기
-                var nameInput = (data.name || "").trim();
-                var titleInput = data.title || "고객님";
-                var displayName = "";
-                
-                if (nameInput === "") {
-                    displayName = titleInput; // 이름 없으면 호칭만 (예: 집사님)
-                } else {
-                    displayName = nameInput + " " + titleInput; // 이름 있으면 (예: 홍길동 집사님)
-                }
-                
                 document.getElementById('callName').innerText = displayName;
                 
+                // 4. 소리 재생
                 playDingDong();
                 window.speechSynthesis.cancel(); 
                 
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
-                    var speakText = kornum + " 번, " + displayName + " 주문하신 음료가 준비되었습니다.";
+                    
+                    // ★ 여기가 문제의 그곳입니다! '고객님' 대신 화면 글자(displayName)를 그대로 읽도록 수정했습니다.
+                    var speakText = kornum + " 번, " + displayName + " 음료가 준비되었습니다.";
+                    
                     var utterance = new SpeechSynthesisUtterance(speakText);
                     utterance.lang = 'ko-KR'; 
                     utterance.rate = 0.9; 
