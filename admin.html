@@ -19,7 +19,7 @@
         .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 90%; margin: 10px auto; }
         .option-item { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd; display: flex; align-items: center; cursor: pointer; font-size: 15px; }
         .option-item input { width: auto; margin: 0 8px 0 0; }
-        .main-btn { width: 90%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .main-btn { width: 90%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
         .main-btn:active { background: #0056b3; }
         
         .history { margin-top: 25px; text-align: left; width: 90%; margin-left: auto; margin-right: auto; }
@@ -44,9 +44,8 @@
             <label class="option-item"><input type="radio" name="title" value="전도사님"> 전도사님</label>
             <label class="option-item"><input type="radio" name="title" value="목사님"> 목사님</label>
             <label class="option-item"><input type="radio" name="title" value="장로님"> 장로님</label>
-            <label class="option-item"><input type="radio" name="title" value="님"> 님</label>
-        </div>
-        <button class="main-btn" onclick="sendCall()">호출하기</button>
+            <label class="option-item"><input type="radio" name="title" value="고객님"> 고객님</label> </div>
+        <button class="main-btn" id="callBtn" onclick="sendCall()">호출하기</button>
         <div class="history">
             <div class="history-title">최근 호출 기록</div>
             <div id="historyList"></div>
@@ -68,13 +67,38 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // 스마트폰 화면을 다시 켰을 때 연결 끊김(먹통) 방지 강제 재연결
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === 'visible') {
+                firebase.database().goOnline();
+            }
+        });
+        window.addEventListener('focus', function() {
+            firebase.database().goOnline();
+        });
+
         function sendCall(hNum, hName, hTitle) {
             const num = hNum || document.getElementById('num').value;
             const name = hName !== undefined ? hName : document.getElementById('name').value;
             const title = hTitle || document.querySelector('input[name="title"]:checked').value;
+            
             if(!num) return alert('번호를 입력하세요');
+
+            // 버튼 시각적 효과 (눌렸는지 확인용)
+            const btn = document.getElementById('callBtn');
+            btn.innerText = "전송 중...";
+            btn.style.background = "#6c757d";
+            
             const callData = { num, name, title, time: Date.now() };
-            db.ref('call').set(callData);
+            db.ref('call').set(callData).then(() => {
+                btn.innerText = "호출하기";
+                btn.style.background = "#007bff";
+            }).catch(() => {
+                alert("통신 지연이 발생했습니다. 다시 눌러주세요.");
+                btn.innerText = "호출하기";
+                btn.style.background = "#007bff";
+            });
+
             if(!hNum) {
                 db.ref('history').push(callData);
                 document.getElementById('num').value = '';
