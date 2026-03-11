@@ -4,29 +4,55 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>성림카페 호출 전광판</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>성림카페 호출 리모컨</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="성림카페">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/924/924514.png">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/924/924514.png">
+
     <style>
-        body { background: #000; color: #ff0000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; cursor: pointer; }
-        .label { font-size: 5vw; color: #fff; margin-bottom: 10px; }
-        .number { font-size: 25vw; font-weight: bold; text-shadow: 0 0 40px #ff0000; margin: 0; line-height: 1; }
-        .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 20px; }
-        .info { font-size: 3vw; color: #aaa; position: absolute; bottom: 50px; }
-        #startOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; align-items: center; justify-content: center; font-size: 4vw; z-index: 1000; flex-direction: column; cursor: pointer; }
-        .pulse-text { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        .version-mark { position: absolute; bottom: 10px; right: 10px; color: #555; font-size: 16px; font-weight: bold; }
+        body { font-family: 'Malgun Gothic', sans-serif; text-align: center; padding: 15px; background: #f0f0f0; margin: 0; -webkit-tap-highlight-color: transparent; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header-title { color: #333; margin: 15px 0; font-size: 22px; font-weight: 800; letter-spacing: -1px; }
+        input { width: 90%; padding: 12px; margin: 5px 0; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; outline: none; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 90%; margin: 10px auto; }
+        .option-item { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd; display: flex; align-items: center; cursor: pointer; font-size: 15px; }
+        .option-item input { width: auto; margin: 0 8px 0 0; }
+        .main-btn { width: 90%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+        .main-btn:active { background: #0056b3; }
+        .history { margin-top: 25px; text-align: left; width: 90%; margin-left: auto; margin-right: auto; }
+        .history-title { font-size: 14px; color: #666; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .history-item { background: #fff; border: 1px solid #e0e0e0; padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .history-info { font-size: 16px; color: #333; flex-grow: 1; cursor: pointer; }
+        .btn-group { display: flex; gap: 8px; }
+        .re-call { font-size: 13px; color: #007bff; border: 1px solid #007bff; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .delete-btn { font-size: 13px; color: #dc3545; border: 1px solid #dc3545; padding: 6px 10px; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="startOverlay" onclick="startSystem()">
-        <div class="pulse-text">👆 화면을 한 번 클릭해 주세요!</div>
+    <div class="container">
+        <div class="header-title">☕ 성림카페 호출 리모컨</div>
+        <input type="number" id="num" placeholder="번호 입력" inputmode="numeric">
+        <input type="text" id="name" placeholder="성함 (생략가능)">
+        <div class="options">
+            <label class="option-item"><input type="radio" name="title" value="형제님"> 형제님</label>
+            <label class="option-item"><input type="radio" name="title" value="자매님"> 자매님</label>
+            <label class="option-item"><input type="radio" name="title" value="집사님" checked> 집사님</label>
+            <label class="option-item"><input type="radio" name="title" value="성도님"> 성도님</label>
+            <label class="option-item"><input type="radio" name="title" value="전도사님"> 전도사님</label>
+            <label class="option-item"><input type="radio" name="title" value="목사님"> 목사님</label>
+            <label class="option-item"><input type="radio" name="title" value="장로님"> 장로님</label>
+            <label class="option-item"><input type="radio" name="title" value="고객님"> 고객님</label>
+        </div>
+        <button class="main-btn" id="callBtn" onclick="sendCall()">호출하기</button>
+        <div class="history">
+            <div class="history-title">최근 호출 기록</div>
+            <div id="historyList"></div>
+        </div>
     </div>
-    <div class="label">준비 완료</div>
-    <div id="callNumber" class="number">--</div>
-    <div id="callName" class="name">대기중</div>
-    <div class="info">은혜로운 하루 되세요!</div>
-
-    <div class="version-mark">버전: V6</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -41,94 +67,63 @@
             appId: "1:266842911139:web:8142bf89052e4fa52c6a16"
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        let isSystemStarted = false;
-        let audioCtx;
-        let systemStartTime = 0;  // ✅ 시스템 시작 시각
-        let lastCalledTime = 0;   // ✅ 마지막 처리한 호출 시각
-
-        function startSystem() {
-            document.getElementById('startOverlay').style.display = 'none';
-            isSystemStarted = true;
-            systemStartTime = Date.now(); // ✅ 클릭한 순간을 기록
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
-        }
-
-        function playDingDong() {
-            if (!audioCtx) return;
-            try {
-                function playNote(freq, startTime, duration) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, startTime);
-                    gain.gain.setValueAtTime(0.3, startTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(startTime);
-                    osc.stop(startTime + duration);
-                }
-                playNote(659.25, audioCtx.currentTime, 0.4);
-                playNote(523.25, audioCtx.currentTime + 0.2, 0.4);
-            } catch(e) {}
-        }
-
-        function numberToKorean(num) {
-            var units = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
-            var tens = ['', '십', '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'];
-            var n = parseInt(num);
-            if (isNaN(n) || n === 0) return '영';
-            if (n < 10) return units[n];
-            if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-            return num;
-        }
-
-        firebase.database().ref('call').on('value', function(snapshot) {
-            var data = snapshot.val();
-            if (!data || !data.num || !isSystemStarted) return;
-
-            // ✅ 핵심: 시스템 시작 이전에 저장된 데이터는 완전히 무시
-            if (!data.time || data.time <= systemStartTime) return;
-
-            // ✅ 동일한 호출 중복 실행 방지
-            if (data.time <= lastCalledTime) return;
-            lastCalledTime = data.time;
-
-            var n = (data.name && data.name.trim() !== "") ? data.name.trim() : "";
-            var t = (data.title && data.title.trim() !== "") ? data.title.trim() : "";
-
-            var displayName = "";
-            if (n !== "" && t !== "") {
-                displayName = n + " " + t;
-            } else if (n !== "") {
-                displayName = n;
-            } else if (t !== "") {
-                displayName = t;
-            } else {
-                displayName = "고객님";
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === 'visible') {
+                firebase.database().goOnline();
             }
+        });
+        window.addEventListener('focus', function() {
+            firebase.database().goOnline();
+        });
 
-            document.getElementById('callNumber').innerText = data.num;
-            document.getElementById('callName').innerText = displayName;
+        function sendCall(hNum, hName, hTitle) {
+            const num = hNum || document.getElementById('num').value;
+            const name = hName !== undefined ? hName : document.getElementById('name').value;
+            const title = hTitle || document.querySelector('input[name="title"]:checked').value;
+            
+            if(!num) return alert('번호를 입력하세요');
 
-            playDingDong();
-            window.speechSynthesis.cancel();
+            const btn = document.getElementById('callBtn');
+            btn.innerText = "전송 중...";
+            btn.style.background = "#6c757d";
+            
+            const callData = { num, name, title, time: Date.now() };
+            db.ref('call').set(callData).then(() => {
+                btn.innerText = "호출하기";
+                btn.style.background = "#007bff";
+            }).catch(() => {
+                alert("통신 지연이 발생했습니다. 다시 눌러주세요.");
+                btn.innerText = "호출하기";
+                btn.style.background = "#007bff";
+            });
 
-            setTimeout(() => {
-                var currentNum = document.getElementById('callNumber').innerText;
-                var currentName = document.getElementById('callName').innerText;
-                var kornum = numberToKorean(currentNum);
-                var speakText = kornum + " 번, " + currentName + ", 음료가 준비되었습니다.";
+            if(!hNum) {
+                db.ref('history').push(callData);
+                document.getElementById('num').value = '';
+                document.getElementById('name').value = '';
+            }
+        }
 
-                var utterance = new SpeechSynthesisUtterance(speakText);
-                utterance.lang = 'ko-KR';
-                utterance.rate = 0.9;
-                utterance.pitch = 1.05;
-                window.speechSynthesis.speak(utterance);
-            }, 800);
+        db.ref('history').orderByChild('time').limitToLast(5).on('value', (snapshot) => {
+            const data = snapshot.val();
+            const list = [];
+            for (let id in data) { list.unshift({ id, ...data[id] }); }
+            const listHtml = list.map(item => `
+                <div class="history-item">
+                    <div class="history-info" onclick="sendCall('${item.num}', '${item.name}', '${item.title}')">
+                        <strong>${item.num}번</strong> ${item.name} ${item.title}
+                    </div>
+                    <div class="btn-group">
+                        <div class="re-call" onclick="sendCall('${item.num}', '${item.name}', '${item.title}')">호출</div>
+                        <div class="delete-btn" onclick="if(confirm('삭제할까요?')) firebase.database().ref('history/${item.id}').remove()">삭제</div>
+                    </div>
+                </div>`).join('');
+            document.getElementById('historyList').innerHTML = listHtml;
         });
     </script>
 </body>
 </html>
+
+
