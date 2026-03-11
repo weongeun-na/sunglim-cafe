@@ -7,12 +7,13 @@
         body { background: #000; color: #ff0000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; cursor: pointer; }
         .label { font-size: 5vw; color: #fff; margin-bottom: 10px; }
         .number { font-size: 25vw; font-weight: bold; text-shadow: 0 0 40px #ff0000; margin: 0; line-height: 1; }
-        .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 20px; }
+        .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 10px; }
+        /* 자막 스타일 추가 */
+        .subtitle { font-size: 2vw; color: #00ff00; margin-top: 20px; font-weight: normal; }
         .info { font-size: 3vw; color: #aaa; position: absolute; bottom: 50px; }
         #startOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; align-items: center; justify-content: center; font-size: 4vw; z-index: 1000; flex-direction: column; cursor: pointer; }
         .pulse-text { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        /* 노트북이 새 코드를 받았는지 확인하는 V3 마커 */
         .version-mark { position: absolute; bottom: 10px; right: 10px; color: #555; font-size: 16px; font-weight: bold; }
     </style>
 </head>
@@ -23,9 +24,11 @@
     <div class="label">준비 완료</div>
     <div id="callNumber" class="number">--</div>
     <div id="callName" class="name">대기중</div>
-    <div class="info">은혜로운 하루 되세요!</div>
     
-    <div class="version-mark">버전: V3</div>
+    <div id="subTitle" class="subtitle">🎤 대기 중...</div>
+    
+    <div class="info">은혜로운 하루 되세요!</div>
+    <div class="version-mark">버전: V4 (자막 추가)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -87,8 +90,6 @@
                 
                 var n = (data.name) ? data.name.trim() : "";
                 var t = (data.title) ? data.title.trim() : "";
-                
-                // 이름이 비어있으면 호칭만, 이름이 있으면 합쳐서!
                 var displayName = (n === "") ? t : (n + " " + t);
 
                 document.getElementById('callNumber').innerText = data.num;
@@ -99,9 +100,10 @@
                 
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
+                    var speakText = kornum + " 번, " + displayName + " 음료가 준비되었습니다.";
                     
-                    // 화면에 보이는 글자(displayName)를 무조건 그대로 읽도록 못 박았습니다!
-                    var speakText = kornum + " 번, " + displayName + ", 음료가 준비되었습니다.";
+                    // 화면에 스피커가 읽을 대본을 초록색 글씨로 띄웁니다!
+                    document.getElementById('subTitle').innerText = "🎤 " + speakText;
                     
                     var utterance = new SpeechSynthesisUtterance(speakText);
                     utterance.lang = 'ko-KR'; 
