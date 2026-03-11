@@ -1,3 +1,4 @@
+
 ```html
 <!DOCTYPE html>
 <html lang="ko">
@@ -25,7 +26,7 @@
     <div id="callName" class="name">대기중</div>
     <div class="info">은혜로운 하루 되세요!</div>
 
-    <div class="version-mark">버전: V5</div>
+    <div class="version-mark">버전: V6</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -43,13 +44,16 @@
 
         let isSystemStarted = false;
         let audioCtx;
-        let lastCalledTime = 0; // ✅ 마지막 호출 시간 기억
+        let lastCalledTime = 0;
 
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
             isSystemStarted = true;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+
+            // ✅ 핵심 수정: 시스템 시작 시점을 기록 → 이전 데이터 전부 무시
+            lastCalledTime = Date.now();
         }
 
         function playDingDong() {
@@ -86,9 +90,9 @@
             var data = snapshot.val();
             if (!data || !data.num || !isSystemStarted) return;
 
-            // ✅ 핵심 수정: 이미 처리한 호출이면 무시 (time 기준 중복 방지)
-            if (data.time && data.time <= lastCalledTime) return;
-            lastCalledTime = data.time || Date.now();
+            // ✅ 시스템 시작 이전 데이터 & 이미 처리한 데이터 무시
+            if (!data.time || data.time <= lastCalledTime) return;
+            lastCalledTime = data.time;
 
             var n = (data.name && data.name.trim() !== "") ? data.name.trim() : "";
             var t = (data.title && data.title.trim() !== "") ? data.title.trim() : "";
@@ -111,7 +115,6 @@
             window.speechSynthesis.cancel();
 
             setTimeout(() => {
-                // ✅ 핵심 수정: 변수 말고 DOM에서 직접 읽어서 음성 출력
                 var currentNum = document.getElementById('callNumber').innerText;
                 var currentName = document.getElementById('callName').innerText;
                 var kornum = numberToKorean(currentNum);
