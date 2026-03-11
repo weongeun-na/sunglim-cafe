@@ -4,14 +4,24 @@
     <meta charset="UTF-8">
     <title>성림카페 호출 전광판</title>
     <style>
-        body { background: #000; color: #ff0000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; }
+        body { background: #000; color: #ff0000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; cursor: pointer; }
         .label { font-size: 5vw; color: #fff; margin-bottom: 10px; }
         .number { font-size: 25vw; font-weight: bold; text-shadow: 0 0 40px #ff0000; margin: 0; line-height: 1; }
         .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 20px; }
         .info { font-size: 3vw; color: #aaa; position: absolute; bottom: 50px; }
+        
+        /* 오디오 허용을 위한 덮개 화면 */
+        #startOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; align-items: center; justify-content: center; font-size: 4vw; z-index: 1000; flex-direction: column; cursor: pointer; }
+        .pulse-text { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
+    <div id="startOverlay" onclick="startSystem()">
+        <div class="pulse-text">👆 여기 화면을 한 번 클릭해 주세요!</div>
+        <div style="font-size: 2vw; margin-top:20px; color:#aaa;">(안내 방송 소리를 켜기 위해 꼭 필요합니다)</div>
+    </div>
+
     <div class="label">준비 완료</div>
     <div id="callNumber" class="number">--</div>
     <div id="callName" class="name">대기중</div>
@@ -31,22 +41,40 @@
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
+        let isSystemStarted = false;
+        let audioCtx;
+
+        // 클릭 시 시스템 시작 및 오디오 엔진 깨우기
+        function startSystem() {
+            document.getElementById('startOverlay').style.display = 'none';
+            isSystemStarted = true;
+            
+            // 딩동 소리 엔진 켜기
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 아나운서 목소리(TTS) 엔진 강제로 한 번 깨우기 (버그 방지)
+            let wakeUp = new SpeechSynthesisUtterance('');
+            window.speechSynthesis.speak(wakeUp);
+        }
+
         function playDingDong() {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            function playNote(freq, startTime, duration) {
-                const osc = context.createOscillator();
-                const gain = context.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, startTime);
-                gain.gain.setValueAtTime(0.3, startTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-                osc.connect(gain);
-                gain.connect(context.destination);
-                osc.start(startTime);
-                osc.stop(startTime + duration);
-            }
-            playNote(659.25, context.currentTime, 0.4); 
-            playNote(523.25, context.currentTime + 0.2, 0.4);
+            if(!audioCtx) return;
+            try {
+                function playNote(freq, startTime, duration) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.3, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                }
+                playNote(659.25, audioCtx.currentTime, 0.4); 
+                playNote(523.25, audioCtx.currentTime + 0.2, 0.4);
+            } catch(e) { console.error("Audio error", e); }
         }
 
         function numberToKorean(num) {
@@ -61,21 +89,25 @@
 
         firebase.database().ref('call').on('value', function(snapshot) {
             var data = snapshot.val();
-            if(data && data.num) {
+            // 시스템이 켜져 있을 때만(클릭 후) 반응하도록 수정
+            if(data && data.num && isSystemStarted) {
                 document.getElementById('callNumber').innerText = data.num;
                 
-                // 이름이 비어있으면 호칭만 나오도록 조건 추가
+                // 이름 입력 안 했을 시 호칭만 나오도록 완벽 분기
+                var nameInput = (data.name || "").trim();
+                var titleInput = data.title || "고객님";
                 var displayName = "";
-                if (data.name && data.name.trim() !== "") {
-                    displayName = data.name + " " + data.title;
+                
+                if (nameInput === "") {
+                    displayName = titleInput; // 이름 없으면 호칭만 (예: 집사님)
                 } else {
-                    displayName = data.title; // 이름이 없으면 '집사님', '고객님' 등 선택한 것만 출력
+                    displayName = nameInput + " " + titleInput; // 이름 있으면 (예: 홍길동 집사님)
                 }
                 
                 document.getElementById('callName').innerText = displayName;
                 
                 playDingDong();
-                window.speechSynthesis.cancel();
+                window.speechSynthesis.cancel(); 
                 
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
@@ -85,7 +117,7 @@
                     utterance.rate = 0.9; 
                     utterance.pitch = 1.05; 
                     window.speechSynthesis.speak(utterance);
-                }, 750);
+                }, 800);
             }
         });
     </script>
