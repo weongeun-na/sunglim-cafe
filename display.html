@@ -1,4 +1,5 @@
 
+```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -25,7 +26,7 @@
     <div id="callName" class="name">대기중</div>
     <div class="info">은혜로운 하루 되세요!</div>
 
-    <div class="version-mark">버전: V4</div>
+    <div class="version-mark">버전: V6</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -43,10 +44,13 @@
 
         let isSystemStarted = false;
         let audioCtx;
+        let systemStartTime = 0;  // ✅ 시스템 시작 시각
+        let lastCalledTime = 0;   // ✅ 마지막 처리한 호출 시각
 
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
             isSystemStarted = true;
+            systemStartTime = Date.now(); // ✅ 클릭한 순간을 기록
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
         }
@@ -83,46 +87,47 @@
 
         firebase.database().ref('call').on('value', function(snapshot) {
             var data = snapshot.val();
+            if (!data || !data.num || !isSystemStarted) return;
 
-            // ✅ 디버그: 콘솔에서 Firebase 데이터 확인
-            console.log("Firebase 수신 데이터:", JSON.stringify(data));
+            // ✅ 핵심: 시스템 시작 이전에 저장된 데이터는 완전히 무시
+            if (!data.time || data.time <= systemStartTime) return;
 
-            if (data && data.num && isSystemStarted) {
+            // ✅ 동일한 호출 중복 실행 방지
+            if (data.time <= lastCalledTime) return;
+            lastCalledTime = data.time;
 
-                var n = (data.name && data.name.trim() !== "") ? data.name.trim() : "";
-                var t = (data.title && data.title.trim() !== "") ? data.title.trim() : "";
+            var n = (data.name && data.name.trim() !== "") ? data.name.trim() : "";
+            var t = (data.title && data.title.trim() !== "") ? data.title.trim() : "";
 
-                // 이름 + 호칭 조합
-                var displayName = "";
-                if (n !== "" && t !== "") {
-                    displayName = n + " " + t;
-                } else if (n !== "") {
-                    displayName = n;
-                } else if (t !== "") {
-                    displayName = t;
-                } else {
-                    displayName = "고객님"; // 둘 다 없을 때만 기본값
-                }
-
-                document.getElementById('callNumber').innerText = data.num;
-                document.getElementById('callName').innerText = displayName;
-
-                playDingDong();
-                window.speechSynthesis.cancel();
-
-                setTimeout(() => {
-                    var kornum = numberToKorean(data.num);
-
-                    // ✅ 화면에 표시된 displayName을 그대로 읽음 (별도 변수 없이)
-                    var speakText = kornum + " 번, " + displayName + ", 음료가 준비되었습니다.";
-
-                    var utterance = new SpeechSynthesisUtterance(speakText);
-                    utterance.lang = 'ko-KR';
-                    utterance.rate = 0.9;
-                    utterance.pitch = 1.05;
-                    window.speechSynthesis.speak(utterance);
-                }, 800);
+            var displayName = "";
+            if (n !== "" && t !== "") {
+                displayName = n + " " + t;
+            } else if (n !== "") {
+                displayName = n;
+            } else if (t !== "") {
+                displayName = t;
+            } else {
+                displayName = "고객님";
             }
+
+            document.getElementById('callNumber').innerText = data.num;
+            document.getElementById('callName').innerText = displayName;
+
+            playDingDong();
+            window.speechSynthesis.cancel();
+
+            setTimeout(() => {
+                var currentNum = document.getElementById('callNumber').innerText;
+                var currentName = document.getElementById('callName').innerText;
+                var kornum = numberToKorean(currentNum);
+                var speakText = kornum + " 번, " + currentName + ", 음료가 준비되었습니다.";
+
+                var utterance = new SpeechSynthesisUtterance(speakText);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 0.9;
+                utterance.pitch = 1.05;
+                window.speechSynthesis.speak(utterance);
+            }, 800);
         });
     </script>
 </body>
