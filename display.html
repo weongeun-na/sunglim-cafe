@@ -63,15 +63,23 @@
             var data = snapshot.val();
             if(data && data.num) {
                 document.getElementById('callNumber').innerText = data.num;
-                var displayName = data.name ? data.name + " " + data.title : "고객님";
+                
+                // 이름이 비어있으면 호칭만 나오도록 조건 추가
+                var displayName = "";
+                if (data.name && data.name.trim() !== "") {
+                    displayName = data.name + " " + data.title;
+                } else {
+                    displayName = data.title; // 이름이 없으면 '집사님', '고객님' 등 선택한 것만 출력
+                }
+                
                 document.getElementById('callName').innerText = displayName;
                 
                 playDingDong();
-                window.speechSynthesis.cancel(); // 이전 음성 즉시 취소
+                window.speechSynthesis.cancel();
                 
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
-                    var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
+                    var speakText = kornum + " 번, " + displayName + " 주문하신 음료가 준비되었습니다.";
                     var utterance = new SpeechSynthesisUtterance(speakText);
                     utterance.lang = 'ko-KR'; 
                     utterance.rate = 0.9; 
