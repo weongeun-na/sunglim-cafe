@@ -119,7 +119,7 @@
                 var currentNum = document.getElementById('callNumber').innerText;
                 var currentName = document.getElementById('callName').innerText;
                 var kornum = numberToKorean(currentNum);
-                var speakText = kornum + " 번, " + currentName + ", 음료가 준비되었습니다.";
+                var speakText = kornum + " 번, " + currentName + ", 주문하신 음료가 준비되었습니다.";
 
                 var utterance = new SpeechSynthesisUtterance(speakText);
                 utterance.lang = 'ko-KR';
