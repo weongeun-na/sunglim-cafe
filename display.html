@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V11 (소리 겹침 방지)</div>
+    <div class="version-mark">버전: V12 (사이렌 소리 적용)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -65,28 +65,28 @@
         function playDingDong() {
             if(!audioCtx) return;
             try {
-                function playDingDongOnce(startTime) {
-                    const osc1 = audioCtx.createOscillator();
-                    const gain1 = audioCtx.createGain();
-                    osc1.type = 'sine';
-                    osc1.frequency.setValueAtTime(659.25, startTime);
-                    gain1.gain.setValueAtTime(1.0, startTime);
-                    gain1.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
-                    osc1.connect(gain1); gain1.connect(audioCtx.destination);
-                    osc1.start(startTime); osc1.stop(startTime + 0.4);
-
-                    const osc2 = audioCtx.createOscillator();
-                    const gain2 = audioCtx.createGain();
-                    osc2.type = 'sine';
-                    osc2.frequency.setValueAtTime(523.25, startTime + 0.2);
-                    gain2.gain.setValueAtTime(1.0, startTime + 0.2);
-                    gain2.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
-                    osc2.connect(gain2); gain2.connect(audioCtx.destination);
-                    osc2.start(startTime + 0.2); osc2.stop(startTime + 0.6);
+                // 사이렌 효과: 2초 동안 삐용삐용 소리 반복
+                for (let i = 0; i < 5; i++) {
+                    let startTime = audioCtx.currentTime + (i * 0.4);
+                    
+                    // 낮은 소리 (400Hz)
+                    const oscLow = audioCtx.createOscillator();
+                    const gainLow = audioCtx.createGain();
+                    oscLow.frequency.setValueAtTime(400, startTime);
+                    gainLow.gain.setValueAtTime(1.0, startTime); // 최대 볼륨
+                    gainLow.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+                    oscLow.connect(gainLow); gainLow.connect(audioCtx.destination);
+                    oscLow.start(startTime); oscLow.stop(startTime + 0.2);
+                    
+                    // 높은 소리 (800Hz)
+                    const oscHigh = audioCtx.createOscillator();
+                    const gainHigh = audioCtx.createGain();
+                    oscHigh.frequency.setValueAtTime(800, startTime + 0.2);
+                    gainHigh.gain.setValueAtTime(1.0, startTime + 0.2); // 최대 볼륨
+                    gainHigh.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+                    oscHigh.connect(gainHigh); gainHigh.connect(audioCtx.destination);
+                    oscHigh.start(startTime + 0.2); oscHigh.stop(startTime + 0.4);
                 }
-
-                playDingDongOnce(audioCtx.currentTime);
-                playDingDongOnce(audioCtx.currentTime + 0.8);
             } catch(e) {}
         }
 
@@ -114,7 +114,7 @@
                 playDingDong();
                 window.speechSynthesis.cancel(); 
                 
-                // ★ 2500ms (2.5초) 뒤에 나레이션이 나오도록 넉넉히 수정했습니다
+                // ★ 사이렌(2초)이 완전히 끝난 후 나레이션이 나오도록 2500ms(2.5초) 대기 유지
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
                     var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
