@@ -11,7 +11,6 @@
         .label { font-size: 5vw; color: #fff; margin-bottom: 10px; }
         .number { font-size: 25vw; font-weight: bold; text-shadow: 0 0 40px #ff0000; margin: 0; line-height: 1; }
         .name { font-size: 8vw; color: #ffd700; font-weight: bold; margin-top: 10px; }
-        /* 녹색 자막 스타일 삭제 */
         .info { font-size: 3vw; color: #aaa; position: absolute; bottom: 50px; }
         #startOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: flex; align-items: center; justify-content: center; font-size: 4vw; z-index: 1000; flex-direction: column; cursor: pointer; }
         .pulse-text { animation: pulse 1.5s infinite; }
@@ -28,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V7 (멘트 수정 및 자막 제거)</div>
+    <div class="version-mark">버전: V9 (최대볼륨 딩동 2번 적용)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -46,7 +45,7 @@
 
         let isSystemStarted = false;
         let audioCtx;
-        let resetTimer; // 15초 초기화 타이머 변수
+        let resetTimer; 
 
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
@@ -66,20 +65,28 @@
         function playDingDong() {
             if(!audioCtx) return;
             try {
-                function playNote(freq, startTime, duration) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, startTime);
-                    gain.gain.setValueAtTime(0.3, startTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(startTime);
-                    osc.stop(startTime + duration);
+                function playDingDongOnce(startTime) {
+                    const osc1 = audioCtx.createOscillator();
+                    const gain1 = audioCtx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(659.25, startTime);
+                    gain1.gain.setValueAtTime(1.0, startTime);
+                    gain1.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+                    osc1.connect(gain1); gain1.connect(audioCtx.destination);
+                    osc1.start(startTime); osc1.stop(startTime + 0.4);
+
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(523.25, startTime + 0.2);
+                    gain2.gain.setValueAtTime(1.0, startTime + 0.2);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
+                    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                    osc2.start(startTime + 0.2); osc2.stop(startTime + 0.6);
                 }
-                playNote(659.25, audioCtx.currentTime, 0.4); 
-                playNote(523.25, audioCtx.currentTime + 0.2, 0.4);
+
+                playDingDongOnce(audioCtx.currentTime);
+                playDingDongOnce(audioCtx.currentTime + 0.8);
             } catch(e) {}
         }
 
@@ -109,28 +116,23 @@
                 
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
-                    // ★ 사용자 요청에 따라 멘트 내용 및 쉼표 추가 ("집사님," 뒤에 쉬어야 하므로 쉼표 배치)
                     var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
-                    
-                    // 녹색 자막 표시 로직 삭제
                     
                     var utterance = new SpeechSynthesisUtterance(speakText);
                     utterance.lang = 'ko-KR'; 
                     utterance.rate = 0.9; 
                     utterance.pitch = 1.05; 
                     window.speechSynthesis.speak(utterance);
-                }, 800);
+                }, 200);
 
-                // 연속 호출 시 기존 타이머 취소
                 if(resetTimer) {
                     clearTimeout(resetTimer);
                 }
 
-                // 새로운 15초 타이머 시작 (유지)
                 resetTimer = setTimeout(() => {
                     document.getElementById('callNumber').innerText = '--';
                     document.getElementById('callName').innerText = '대기중';
-                }, 15000); // 15초 유지
+                }, 15000); 
             }
         });
     </script>
