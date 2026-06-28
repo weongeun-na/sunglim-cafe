@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V10 (딩동 후 나레이션 분리)</div>
+    <div class="version-mark">버전: V11 (소리 겹침 방지)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -114,7 +114,7 @@
                 playDingDong();
                 window.speechSynthesis.cancel(); 
                 
-                // ★ 1800ms (1.8초) 뒤에 나레이션이 나오도록 수정했습니다
+                // ★ 2500ms (2.5초) 뒤에 나레이션이 나오도록 넉넉히 수정했습니다
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
                     var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
@@ -124,7 +124,7 @@
                     utterance.rate = 0.9; 
                     utterance.pitch = 1.05; 
                     window.speechSynthesis.speak(utterance);
-                }, 1800);
+                }, 2500);
 
                 if(resetTimer) {
                     clearTimeout(resetTimer);
