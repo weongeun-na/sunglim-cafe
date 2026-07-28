@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V12 (사이렌 소리 적용)</div>
+    <div class="version-mark">버전: V13 (매주 바뀌는 5가지 사이렌)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -62,30 +62,91 @@
             }
         }
 
-        function playDingDong() {
+        // 매주마다 0~4 중 하나의 고유 번호를 반환하는 함수
+        function getWeeklySirenType() {
+            const now = new Date();
+            // 1970년 1월 1일 이후 경과한 '주(Week)' 수를 계산 (1주일 = 604800000밀리초)
+            const weekNumber = Math.floor(now.getTime() / 604800000);
+            return weekNumber % 5; 
+        }
+
+        function playSiren() {
             if(!audioCtx) return;
+            const type = getWeeklySirenType();
+            const duration = 2.0; // 모든 사이렌은 2초 동안만 울림
+            const startTime = audioCtx.currentTime;
+
             try {
-                // 사이렌 효과: 2초 동안 삐용삐용 소리 반복
-                for (let i = 0; i < 5; i++) {
-                    let startTime = audioCtx.currentTime + (i * 0.4);
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 0) {
+                    // 1. 클래식 경찰차 (톱니파, 삐-뽀-삐-뽀)
+                    osc.type = 'sawtooth';
+                    for (let i = 0; i < 6; i++) {
+                        let t = startTime + (i * 0.33);
+                        if (t < startTime + duration) {
+                            osc.frequency.setValueAtTime(i % 2 === 0 ? 600 : 800, t);
+                        }
+                    }
+                    gain.gain.setValueAtTime(0.5, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                    osc.start(startTime); osc.stop(startTime + duration);
+
+                } else if (type === 1) {
+                    // 2. 유럽형 구급차 (사각파, 빠른 경고음)
+                    osc.type = 'square';
+                    for (let i = 0; i < 12; i++) {
+                        let t = startTime + (i * 0.16);
+                        if (t < startTime + duration) {
+                            osc.frequency.setValueAtTime(i % 2 === 0 ? 750 : 950, t);
+                        }
+                    }
+                    gain.gain.setValueAtTime(0.3, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                    osc.start(startTime); osc.stop(startTime + duration);
+
+                } else if (type === 2) {
+                    // 3. 민방위/공습경보 (사인파, 느리게 웅~ 올라갔다 내려옴)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, startTime);
+                    osc.frequency.linearRampToValueAtTime(1100, startTime + 1.0);
+                    osc.frequency.linearRampToValueAtTime(400, startTime + 2.0);
                     
-                    // 낮은 소리 (400Hz)
-                    const oscLow = audioCtx.createOscillator();
-                    const gainLow = audioCtx.createGain();
-                    oscLow.frequency.setValueAtTime(400, startTime);
-                    gainLow.gain.setValueAtTime(1.0, startTime); // 최대 볼륨
-                    gainLow.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
-                    oscLow.connect(gainLow); gainLow.connect(audioCtx.destination);
-                    oscLow.start(startTime); oscLow.stop(startTime + 0.2);
-                    
-                    // 높은 소리 (800Hz)
-                    const oscHigh = audioCtx.createOscillator();
-                    const gainHigh = audioCtx.createGain();
-                    oscHigh.frequency.setValueAtTime(800, startTime + 0.2);
-                    gainHigh.gain.setValueAtTime(1.0, startTime + 0.2); // 최대 볼륨
-                    gainHigh.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
-                    oscHigh.connect(gainHigh); gainHigh.connect(audioCtx.destination);
-                    oscHigh.start(startTime + 0.2); oscHigh.stop(startTime + 0.4);
+                    gain.gain.setValueAtTime(1.0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.01, startTime + duration);
+                    osc.start(startTime); osc.stop(startTime + duration);
+
+                } else if (type === 3) {
+                    // 4. SF 우주선 경보음 (빠른 상승 짹짹)
+                    osc.type = 'sawtooth';
+                    gain.gain.setValueAtTime(0.4, startTime);
+                    for (let i = 0; i < 10; i++) {
+                        let t = startTime + (i * 0.2);
+                        if (t < startTime + duration) {
+                            osc.frequency.setValueAtTime(500, t);
+                            osc.frequency.exponentialRampToValueAtTime(1500, t + 0.15);
+                        }
+                    }
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                    osc.start(startTime); osc.stop(startTime + duration);
+
+                } else if (type === 4) {
+                    // 5. 소방차 왱왱 (사인파, 중간 속도로 오르락내리락 반복)
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(1.0, startTime);
+                    for (let i = 0; i < 4; i++) {
+                        let t = startTime + (i * 0.5);
+                        if (t < startTime + duration) {
+                            osc.frequency.setValueAtTime(500, t);
+                            osc.frequency.linearRampToValueAtTime(1000, t + 0.25);
+                            osc.frequency.linearRampToValueAtTime(500, t + 0.5);
+                        }
+                    }
+                    gain.gain.linearRampToValueAtTime(0.01, startTime + duration);
+                    osc.start(startTime); osc.stop(startTime + duration);
                 }
             } catch(e) {}
         }
@@ -111,10 +172,10 @@
                 document.getElementById('callNumber').innerText = data.num;
                 document.getElementById('callName').innerText = displayName;
                 
-                playDingDong();
+                playSiren(); // 매주 바뀌는 사이렌 함수 호출
                 window.speechSynthesis.cancel(); 
                 
-                // ★ 사이렌(2초)이 완전히 끝난 후 나레이션이 나오도록 2500ms(2.5초) 대기 유지
+                // 사이렌(2초) 재생 후 겹치지 않게 2500ms(2.5초) 뒤 나레이션
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
                     var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
