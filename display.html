@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V13 (매주 바뀌는 5가지 사이렌)</div>
+    <div class="version-mark">버전: V14 (호출 시 5가지 완전 랜덤 사이렌)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -62,18 +62,15 @@
             }
         }
 
-        // 매주마다 0~4 중 하나의 고유 번호를 반환하는 함수
-        function getWeeklySirenType() {
-            const now = new Date();
-            // 1970년 1월 1일 이후 경과한 '주(Week)' 수를 계산 (1주일 = 604800000밀리초)
-            const weekNumber = Math.floor(now.getTime() / 604800000);
-            return weekNumber % 5; 
+        // 호출할 때마다 0, 1, 2, 3, 4 중 무작위(랜덤)로 하나를 선택하는 함수
+        function getRandomSirenType() {
+            return Math.floor(Math.random() * 5); 
         }
 
         function playSiren() {
             if(!audioCtx) return;
-            const type = getWeeklySirenType();
-            const duration = 2.0; // 모든 사이렌은 2초 동안만 울림
+            const type = getRandomSirenType(); // 💥 진짜 무작위 랜덤 선택!
+            const duration = 2.0; // 2초간 실행
             const startTime = audioCtx.currentTime;
 
             try {
@@ -83,7 +80,7 @@
                 gain.connect(audioCtx.destination);
 
                 if (type === 0) {
-                    // 1. 클래식 경찰차 (톱니파, 삐-뽀-삐-뽀)
+                    // 1. 클래식 경찰차 (삐-뽀-삐-뽀)
                     osc.type = 'sawtooth';
                     for (let i = 0; i < 6; i++) {
                         let t = startTime + (i * 0.33);
@@ -96,7 +93,7 @@
                     osc.start(startTime); osc.stop(startTime + duration);
 
                 } else if (type === 1) {
-                    // 2. 유럽형 구급차 (사각파, 빠른 경고음)
+                    // 2. 긴박한 구급차 (빠른 경고음)
                     osc.type = 'square';
                     for (let i = 0; i < 12; i++) {
                         let t = startTime + (i * 0.16);
@@ -109,7 +106,7 @@
                     osc.start(startTime); osc.stop(startTime + duration);
 
                 } else if (type === 2) {
-                    // 3. 민방위/공습경보 (사인파, 느리게 웅~ 올라갔다 내려옴)
+                    // 3. 민방위 경보 (웅~ 올라갔다 내려오는 소리)
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(400, startTime);
                     osc.frequency.linearRampToValueAtTime(1100, startTime + 1.0);
@@ -120,7 +117,7 @@
                     osc.start(startTime); osc.stop(startTime + duration);
 
                 } else if (type === 3) {
-                    // 4. SF 우주선 경보음 (빠른 상승 짹짹)
+                    // 4. SF 우주선 경보음 (빠른 상승 전자음)
                     osc.type = 'sawtooth';
                     gain.gain.setValueAtTime(0.4, startTime);
                     for (let i = 0; i < 10; i++) {
@@ -134,7 +131,7 @@
                     osc.start(startTime); osc.stop(startTime + duration);
 
                 } else if (type === 4) {
-                    // 5. 소방차 왱왱 (사인파, 중간 속도로 오르락내리락 반복)
+                    // 5. 소방차 왱왱 (오르락내리락 반복)
                     osc.type = 'sine';
                     gain.gain.setValueAtTime(1.0, startTime);
                     for (let i = 0; i < 4; i++) {
@@ -172,10 +169,9 @@
                 document.getElementById('callNumber').innerText = data.num;
                 document.getElementById('callName').innerText = displayName;
                 
-                playSiren(); // 매주 바뀌는 사이렌 함수 호출
+                playSiren(); // 호출할 때마다 무작위 사이렌 소리 재생
                 window.speechSynthesis.cancel(); 
                 
-                // 사이렌(2초) 재생 후 겹치지 않게 2500ms(2.5초) 뒤 나레이션
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
                     var speakText = kornum + " 번, " + displayName + ", 주문하신 음료가 준비되었습니다.";
