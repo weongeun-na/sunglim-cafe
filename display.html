@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V23 (표준어 정감 버전)</div>
+    <div class="version-mark">버전: V25 (자매=남성 / 형제=여성 / 그외=랜덤 성우)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -108,7 +108,6 @@
             return num;
         }
 
-        // 다정하고 정감 있는 표준어 멘트 5종
         const normalMentions = [
             "주문하신 음료가 나왔습니다! 맛있게 드세요~",
             "기다리시던 음료가 준비되었습니다. 픽업대로 와주세요~",
@@ -117,14 +116,26 @@
             "주문하신 메뉴가 준비되었습니다! 식기 전에 어서 가져가세요~"
         ];
 
-        // 연속 호출 시 유쾌하고 다정하게 재촉하는 멘트 3종
         const urgentMentions = [
             "아까 불렀는데 아직 안 오셨네요! 얼음 다 녹기 전에 어서 오세요~",
             "음료가 픽업대에서 애타게 기다리고 있습니다! 얼른 오셔서 가져가세요~",
             "다시 한번 불러드립니다! 바쁘시더라도 음료 먼저 챙겨가세요~"
         ];
 
-        async function speakWithOpenAI(text, isRepeat) {
+        // 호칭에 따른 성우 자동 선택 함수
+        function selectVoiceByTitle(titleText) {
+            if (titleText.includes("자매")) {
+                return "ash"; // 자매 -> 다정한 남성 성우
+            } else if (titleText.includes("형제")) {
+                return "nova"; // 형제 -> 밝고 친절한 여성 성우
+            } else {
+                // 나머지(집사, 권사, 목사, 성도 등) -> 남녀 성우 4종 중 랜덤
+                const allVoices = ["nova", "shimmer", "ash", "echo"];
+                return allVoices[Math.floor(Math.random() * allVoices.length)];
+            }
+        }
+
+        async function speakWithOpenAI(text, isRepeat, selectedVoice) {
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio = null;
@@ -142,7 +153,7 @@
                     },
                     body: JSON.stringify({
                         model: "gpt-4o-mini-tts",
-                        voice: "nova",
+                        voice: selectedVoice,
                         input: text,
                         instructions: actingInstruction,
                         speed: isRepeat ? 1.05 : 1.0
@@ -176,27 +187,27 @@
                 lastCalledNum = data.num;
                 lastCalledTime = now;
 
-                setTimeout(() => {
-                    var kornum = numberToKorean(data.num);
-                    var selectedMention = isRepeatCall 
-                        ? urgentMentions[Math.floor(Math.random() * urgentMentions.length)]
-                        : normalMentions[Math.floor(Math.random() * normalMentions.length)];
+                var kornum = numberToKorean(data.num);
+                var selectedMention = isRepeatCall 
+                    ? urgentMentions[Math.floor(Math.random() * urgentMentions.length)]
+                    : normalMentions[Math.floor(Math.random() * normalMentions.length)];
 
-                    var namePart = "";
-                    if (isRepeatCall) {
-                        if (n !== "") {
-                            var spelledName = n.split("").join(", ");
-                            namePart = (t !== "") ? (spelledName + ", " + t + "!") : (spelledName + "님!");
-                        } else {
-                            namePart = t + "!";
-                        }
+                var namePart = "";
+                if (isRepeatCall) {
+                    if (n !== "") {
+                        var spelledName = n.split("").join(", ");
+                        namePart = (t !== "") ? (spelledName + ", " + t + "!") : (spelledName + "님!");
                     } else {
-                        namePart = displayName + ", " + displayName;
+                        namePart = t + "!";
                     }
+                } else {
+                    namePart = displayName + ", " + displayName;
+                }
 
-                    var speakText = kornum + " 번, " + namePart + " " + selectedMention;
-                    speakWithOpenAI(speakText, isRepeatCall);
-                }, 1800);
+                var speakText = kornum + " 번, " + namePart + " " + selectedMention;
+                var targetVoice = selectVoiceByTitle(t);
+                
+                speakWithOpenAI(speakText, isRepeatCall, targetVoice);
 
                 if(resetTimer) clearTimeout(resetTimer);
                 resetTimer = setTimeout(() => {
