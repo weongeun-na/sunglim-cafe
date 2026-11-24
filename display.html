@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V17 (사투리 5종 랜덤 & 연속호출 재촉)</div>
+    <div class="version-mark">버전: V18 (고품질 AI 성우 엔진 우선 적용)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -46,14 +46,27 @@
         let isSystemStarted = false;
         let audioCtx;
         let resetTimer;
-        
-        // 연속 호출 감지를 위한 기록 변수
         let lastCalledNum = null;
         let lastCalledTime = 0;
+        let premiumVoice = null;
+
+        // 브라우저에서 가장 자연스러운 고품질 성우(Natural/Online) 목소리를 찾는 함수
+        function loadBestVoice() {
+            const voices = window.speechSynthesis.getVoices();
+            // 1순위: Microsoft SunHi (성우급 여성) 또는 InJoon (남성)
+            // 2순위: Google 한국의 고품질 네트워크 음성
+            premiumVoice = voices.find(v => v.lang.includes('ko') && (v.name.includes('SunHi') || v.name.includes('Natural'))) 
+                        || voices.find(v => v.lang.includes('ko') && v.name.includes('Google'))
+                        || voices.find(v => v.lang.includes('ko'));
+        }
+
+        window.speechSynthesis.onvoiceschanged = loadBestVoice;
+        loadBestVoice();
 
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
             isSystemStarted = true;
+            loadBestVoice();
             
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); 
@@ -123,7 +136,6 @@
             return num;
         }
 
-        // 일반 사투리 멘트 5가지
         const normalMentions = [
             "시키신 음료 다 나왔소잉! 얼른 와서 가져가쇼잉~",
             "주문하신 거 떴응께, 얼른 와서 챙겨가쇼잉!",
@@ -132,7 +144,6 @@
             "맛나게 타놨응께, 얼른 나와서 가져가쇼잉~"
         ];
 
-        // 연속 호출 시 나오는 쎈 사투리 멘트 3가지
         const urgentMentions = [
             "아따~ 아까 불렀는디 안 오시고 뭐 하신당가요! 얼음 다 녹아분께 언능 오쇼잉!",
             "거그 계신 거 다 알고 있소잉! 음료 다 식어분께 빨랑 나와서 가져가쇼잉!",
@@ -153,33 +164,27 @@
                 playChimes();
                 window.speechSynthesis.cancel(); 
                 
-                // 30초(30000ms) 이내에 같은 번호를 또 호출했는지 판별
                 const now = Date.now();
                 const isRepeatCall = (lastCalledNum === data.num) && ((now - lastCalledTime) < 30000);
                 
-                // 현재 호출 기록 갱신
                 lastCalledNum = data.num;
                 lastCalledTime = now;
 
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
-                    var selectedMention = "";
-
-                    if (isRepeatCall) {
-                        // 연속 호출이면 쎈 멘트 중 랜덤 선택
-                        selectedMention = urgentMentions[Math.floor(Math.random() * urgentMentions.length)];
-                    } else {
-                        // 첫 호출이면 일반 사투리 5개 중 랜덤 선택
-                        selectedMention = normalMentions[Math.floor(Math.random() * normalMentions.length)];
-                    }
+                    var selectedMention = isRepeatCall 
+                        ? urgentMentions[Math.floor(Math.random() * urgentMentions.length)]
+                        : normalMentions[Math.floor(Math.random() * normalMentions.length)];
 
                     var speakText = kornum + " 번, " + displayName + ", " + displayName + ", " + selectedMention;
                     
                     var utterance = new SpeechSynthesisUtterance(speakText);
+                    if (premiumVoice) {
+                        utterance.voice = premiumVoice; // 고품질 AI 성우 연결
+                    }
                     utterance.lang = 'ko-KR'; 
-                    // 연속 호출일 때는 목소리 속도와 톤을 살짝 더 다급하게 조절
-                    utterance.rate = isRepeatCall ? 1.0 : 0.9; 
-                    utterance.pitch = isRepeatCall ? 1.15 : 1.05; 
+                    utterance.rate = isRepeatCall ? 1.05 : 0.95; 
+                    utterance.pitch = isRepeatCall ? 1.1 : 1.0; 
                     window.speechSynthesis.speak(utterance);
                 }, 2000);
 
