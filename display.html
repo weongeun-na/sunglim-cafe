@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V15 (경쾌한 랜덤음 5종 & 이름 2번 호출)</div>
+    <div class="version-mark">버전: V17 (사투리 5종 랜덤 & 연속호출 재촉)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -45,7 +45,11 @@
 
         let isSystemStarted = false;
         let audioCtx;
-        let resetTimer; 
+        let resetTimer;
+        
+        // 연속 호출 감지를 위한 기록 변수
+        let lastCalledNum = null;
+        let lastCalledTime = 0;
 
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
@@ -72,7 +76,6 @@
             const startTime = audioCtx.currentTime;
 
             try {
-                // 음계 연주를 도와주는 내부 함수
                 function playTone(freq, timeOffset, duration, waveType='sine') {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -87,26 +90,21 @@
                 }
 
                 if (type === 0) {
-                    // 1. 맑고 경쾌한 딩동 (기본)
-                    playTone(659.25, 0, 0.5); // 미
-                    playTone(523.25, 0.3, 0.6); // 도
+                    playTone(659.25, 0, 0.5);
+                    playTone(523.25, 0.3, 0.6);
                 } else if (type === 1) {
-                    // 2. 밝게 올라가는 3단음 (도-미-솔)
                     playTone(523.25, 0, 0.3);
                     playTone(659.25, 0.2, 0.3);
                     playTone(783.99, 0.4, 0.5);
                 } else if (type === 2) {
-                    // 3. 부드러운 편의점/카페 입장음
                     playTone(698.46, 0, 0.4, 'triangle');
                     playTone(587.33, 0.3, 0.4, 'triangle');
                     playTone(523.25, 0.6, 0.5, 'triangle');
                 } else if (type === 3) {
-                    // 4. 반짝이는 알림음 (빠르고 높은 소리)
                     playTone(1046.50, 0, 0.2);
                     playTone(1318.51, 0.15, 0.2);
                     playTone(1567.98, 0.3, 0.4);
                 } else if (type === 4) {
-                    // 5. 강조형 더블 딩동 (딩동-딩동)
                     playTone(659.25, 0, 0.4);
                     playTone(523.25, 0.2, 0.4);
                     playTone(659.25, 0.6, 0.4);
@@ -125,6 +123,22 @@
             return num;
         }
 
+        // 일반 사투리 멘트 5가지
+        const normalMentions = [
+            "시키신 음료 다 나왔소잉! 얼른 와서 가져가쇼잉~",
+            "주문하신 거 떴응께, 얼른 와서 챙겨가쇼잉!",
+            "음료 다 됐당께요! 식기 전에 언능 오쇼잉~",
+            "아따, 음료 다 나왔는디 언능 오셔서 드셔보쇼잉!",
+            "맛나게 타놨응께, 얼른 나와서 가져가쇼잉~"
+        ];
+
+        // 연속 호출 시 나오는 쎈 사투리 멘트 3가지
+        const urgentMentions = [
+            "아따~ 아까 불렀는디 안 오시고 뭐 하신당가요! 얼음 다 녹아분께 언능 오쇼잉!",
+            "거그 계신 거 다 알고 있소잉! 음료 다 식어분께 빨랑 나와서 가져가쇼잉!",
+            "몇 번을 부른당가요~ 바쁘셔도 음료는 챙겨가셔야제! 언능 나오쇼잉!"
+        ];
+
         firebase.database().ref('call').on('value', function(snapshot) {
             var data = snapshot.val();
             if(data && data.num && isSystemStarted) {
@@ -136,19 +150,36 @@
                 document.getElementById('callNumber').innerText = data.num;
                 document.getElementById('callName').innerText = displayName;
                 
-                playChimes(); // 경쾌한 랜덤 5종 소리 재생
+                playChimes();
                 window.speechSynthesis.cancel(); 
                 
-                // 알림음이 끝난 뒤(약 2초 후) 음성 멘트 재생
+                // 30초(30000ms) 이내에 같은 번호를 또 호출했는지 판별
+                const now = Date.now();
+                const isRepeatCall = (lastCalledNum === data.num) && ((now - lastCalledTime) < 30000);
+                
+                // 현재 호출 기록 갱신
+                lastCalledNum = data.num;
+                lastCalledTime = now;
+
                 setTimeout(() => {
                     var kornum = numberToKorean(data.num);
-                    // ★ 이름을 2번 연속으로 부르도록 수정했습니다
-                    var speakText = kornum + " 번, " + displayName + ", " + displayName + ", 주문하신 음료가 준비되었습니다.";
+                    var selectedMention = "";
+
+                    if (isRepeatCall) {
+                        // 연속 호출이면 쎈 멘트 중 랜덤 선택
+                        selectedMention = urgentMentions[Math.floor(Math.random() * urgentMentions.length)];
+                    } else {
+                        // 첫 호출이면 일반 사투리 5개 중 랜덤 선택
+                        selectedMention = normalMentions[Math.floor(Math.random() * normalMentions.length)];
+                    }
+
+                    var speakText = kornum + " 번, " + displayName + ", " + displayName + ", " + selectedMention;
                     
                     var utterance = new SpeechSynthesisUtterance(speakText);
                     utterance.lang = 'ko-KR'; 
-                    utterance.rate = 0.9; 
-                    utterance.pitch = 1.05; 
+                    // 연속 호출일 때는 목소리 속도와 톤을 살짝 더 다급하게 조절
+                    utterance.rate = isRepeatCall ? 1.0 : 0.9; 
+                    utterance.pitch = isRepeatCall ? 1.15 : 1.05; 
                     window.speechSynthesis.speak(utterance);
                 }, 2000);
 
