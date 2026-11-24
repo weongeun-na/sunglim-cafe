@@ -27,11 +27,13 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V18 (고품질 AI 성우 엔진 우선 적용)</div>
+    <div class="version-mark">버전: V21 (재호출 시 이름 한 자씩 또박또박)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script>
+        const OPENAI_API_KEY = "sk-proj-inWLEmeAe8y5hrh7T6THxiNnwCKcjIyv-kdM1_4W_QY7xTp-gnEnCd1KnRoX2Oy58w3qFp4DR" + "ET3BlbkFJbpsdJCh_E3LF8dt4JrJsWvWxIGsMI6QW8uLJaUnDCibXseU_r48Xj6hchMiSWHMmThAU0i1O0A";
+
         var firebaseConfig = {
             apiKey: "AIzaSyAtsMFXTLEmIgew3S_qaZY3m9SbVTnGx7E",
             authDomain: "sunglim-cafe.firebaseapp.com",
@@ -48,28 +50,12 @@
         let resetTimer;
         let lastCalledNum = null;
         let lastCalledTime = 0;
-        let premiumVoice = null;
-
-        // 브라우저에서 가장 자연스러운 고품질 성우(Natural/Online) 목소리를 찾는 함수
-        function loadBestVoice() {
-            const voices = window.speechSynthesis.getVoices();
-            // 1순위: Microsoft SunHi (성우급 여성) 또는 InJoon (남성)
-            // 2순위: Google 한국의 고품질 네트워크 음성
-            premiumVoice = voices.find(v => v.lang.includes('ko') && (v.name.includes('SunHi') || v.name.includes('Natural'))) 
-                        || voices.find(v => v.lang.includes('ko') && v.name.includes('Google'))
-                        || voices.find(v => v.lang.includes('ko'));
-        }
-
-        window.speechSynthesis.onvoiceschanged = loadBestVoice;
-        loadBestVoice();
+        let currentAudio = null;
 
         function startSystem() {
             document.getElementById('startOverlay').style.display = 'none';
             isSystemStarted = true;
-            loadBestVoice();
-            
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); 
 
             let elem = document.documentElement;
             if (elem.requestFullscreen) {
@@ -79,13 +65,9 @@
             }
         }
 
-        function getRandomChimeType() {
-            return Math.floor(Math.random() * 5); 
-        }
-
         function playChimes() {
             if(!audioCtx) return;
-            const type = getRandomChimeType();
+            const type = Math.floor(Math.random() * 5);
             const startTime = audioCtx.currentTime;
 
             try {
@@ -103,25 +85,15 @@
                 }
 
                 if (type === 0) {
-                    playTone(659.25, 0, 0.5);
-                    playTone(523.25, 0.3, 0.6);
+                    playTone(659.25, 0, 0.5); playTone(523.25, 0.3, 0.6);
                 } else if (type === 1) {
-                    playTone(523.25, 0, 0.3);
-                    playTone(659.25, 0.2, 0.3);
-                    playTone(783.99, 0.4, 0.5);
+                    playTone(523.25, 0, 0.3); playTone(659.25, 0.2, 0.3); playTone(783.99, 0.4, 0.5);
                 } else if (type === 2) {
-                    playTone(698.46, 0, 0.4, 'triangle');
-                    playTone(587.33, 0.3, 0.4, 'triangle');
-                    playTone(523.25, 0.6, 0.5, 'triangle');
+                    playTone(698.46, 0, 0.4, 'triangle'); playTone(587.33, 0.3, 0.4, 'triangle'); playTone(523.25, 0.6, 0.5, 'triangle');
                 } else if (type === 3) {
-                    playTone(1046.50, 0, 0.2);
-                    playTone(1318.51, 0.15, 0.2);
-                    playTone(1567.98, 0.3, 0.4);
+                    playTone(1046.50, 0, 0.2); playTone(1318.51, 0.15, 0.2); playTone(1567.98, 0.3, 0.4);
                 } else if (type === 4) {
-                    playTone(659.25, 0, 0.4);
-                    playTone(523.25, 0.2, 0.4);
-                    playTone(659.25, 0.6, 0.4);
-                    playTone(523.25, 0.8, 0.4);
+                    playTone(659.25, 0, 0.4); playTone(523.25, 0.2, 0.4); playTone(659.25, 0.6, 0.4); playTone(523.25, 0.8, 0.4);
                 }
             } catch(e) {}
         }
@@ -150,10 +122,39 @@
             "몇 번을 부른당가요~ 바쁘셔도 음료는 챙겨가셔야제! 언능 나오쇼잉!"
         ];
 
+        async function speakWithOpenAI(text, isRepeat) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            try {
+                const response = await fetch("https://api.openai.com/v1/audio/speech", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "tts-1",
+                        voice: "nova",
+                        input: text,
+                        speed: isRepeat ? 1.05 : 1.0
+                    })
+                });
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                currentAudio = new Audio(url);
+                currentAudio.play();
+            } catch (e) {
+                var fallback = new SpeechSynthesisUtterance(text);
+                fallback.lang = 'ko-KR';
+                window.speechSynthesis.speak(fallback);
+            }
+        }
+
         firebase.database().ref('call').on('value', function(snapshot) {
             var data = snapshot.val();
             if(data && data.num && isSystemStarted) {
-                
                 var n = (data.name) ? data.name.trim() : "";
                 var t = (data.title) ? data.title.trim() : "";
                 var displayName = (n === "") ? t : (n + " " + t);
@@ -162,11 +163,9 @@
                 document.getElementById('callName').innerText = displayName;
                 
                 playChimes();
-                window.speechSynthesis.cancel(); 
                 
                 const now = Date.now();
                 const isRepeatCall = (lastCalledNum === data.num) && ((now - lastCalledTime) < 30000);
-                
                 lastCalledNum = data.num;
                 lastCalledTime = now;
 
@@ -176,22 +175,23 @@
                         ? urgentMentions[Math.floor(Math.random() * urgentMentions.length)]
                         : normalMentions[Math.floor(Math.random() * normalMentions.length)];
 
-                    var speakText = kornum + " 번, " + displayName + ", " + displayName + ", " + selectedMention;
-                    
-                    var utterance = new SpeechSynthesisUtterance(speakText);
-                    if (premiumVoice) {
-                        utterance.voice = premiumVoice; // 고품질 AI 성우 연결
+                    var namePart = "";
+                    if (isRepeatCall) {
+                        if (n !== "") {
+                            var spelledName = n.split("").join(", ");
+                            namePart = (t !== "") ? (spelledName + ", " + t + "!") : (spelledName + "님!");
+                        } else {
+                            namePart = t + "!";
+                        }
+                    } else {
+                        namePart = displayName + ", " + displayName;
                     }
-                    utterance.lang = 'ko-KR'; 
-                    utterance.rate = isRepeatCall ? 1.05 : 0.95; 
-                    utterance.pitch = isRepeatCall ? 1.1 : 1.0; 
-                    window.speechSynthesis.speak(utterance);
-                }, 2000);
 
-                if(resetTimer) {
-                    clearTimeout(resetTimer);
-                }
+                    var speakText = kornum + " 번, " + namePart + " " + selectedMention;
+                    speakWithOpenAI(speakText, isRepeatCall);
+                }, 1800);
 
+                if(resetTimer) clearTimeout(resetTimer);
                 resetTimer = setTimeout(() => {
                     document.getElementById('callNumber').innerText = '--';
                     document.getElementById('callName').innerText = '대기중';
