@@ -27,7 +27,7 @@
     <div id="callName" class="name">대기중</div>
     
     <div class="info">은혜로운 하루 되세요!</div>
-    <div class="version-mark">버전: V21 (재호출 시 이름 한 자씩 또박또박)</div>
+    <div class="version-mark">버전: V22 (사투리 억양 연기 지시 적용)</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -109,10 +109,10 @@
         }
 
         const normalMentions = [
-            "시키신 음료 다 나왔소잉! 얼른 와서 가져가쇼잉~",
-            "주문하신 거 떴응께, 얼른 와서 챙겨가쇼잉!",
+            "시키신 음료 다 나왔소잉~ 얼른 와서 가져가쇼잉!",
+            "주문하신 거 떴응께, 얼른 와서 챙겨가쇼잉~",
             "음료 다 됐당께요! 식기 전에 언능 오쇼잉~",
-            "아따, 음료 다 나왔는디 언능 오셔서 드셔보쇼잉!",
+            "아따, 음료 다 나왔는디~ 언능 오셔서 드셔보쇼잉!",
             "맛나게 타놨응께, 얼른 나와서 가져가쇼잉~"
         ];
 
@@ -128,6 +128,11 @@
                 currentAudio = null;
             }
             try {
+                // 연기 지시어 (전라도 사투리 억양과 정감 있는 톤 유도)
+                const actingInstruction = isRepeat 
+                    ? "구수하고 정감 있는 한국 전라도 사투리 억양으로, 손님을 다정하게 재촉하듯 억양의 높낮이를 살려 활기차게 말해주세요. 표준어 아나운서처럼 딱딱하게 읽지 말고 실제 전라도 토박이 카페 사장님처럼 자연스러운 사투리 톤으로 연기하세요."
+                    : "구수하고 정감 있는 한국 전라도 사투리 억양으로, 카페에서 손님을 반갑고 다정하게 부르듯 억양의 높낮이를 살려 말해주세요. 표준어 아나운서처럼 읽지 말고 실제 전라도 토박이처럼 구수한 사투리 톤으로 연기하세요.";
+
                 const response = await fetch("https://api.openai.com/v1/audio/speech", {
                     method: "POST",
                     headers: {
@@ -135,9 +140,10 @@
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        model: "tts-1",
+                        model: "gpt-4o-mini-tts",
                         voice: "nova",
                         input: text,
+                        instructions: actingInstruction,
                         speed: isRepeat ? 1.05 : 1.0
                     })
                 });
